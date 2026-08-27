@@ -47,7 +47,7 @@ export function NotificationBell({
     return rows.flatMap((row) => {
       const candidate = getReminderCandidate(row, today)
       if (!candidate) return []
-      const key = reminderKey(row.id, candidate.dueDate, candidate.daysBefore, 'in-app')
+      const key = reminderKey(row.id, candidate.dueDate, candidate.daysBefore, 'local')
       if (dismissed.has(key)) return []
       return [{ key, obligation: row, daysRemaining: candidate.daysRemaining }]
     })

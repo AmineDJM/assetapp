@@ -1,158 +1,161 @@
 import { describe, expect, it } from 'vitest'
-import {
-  buildReminderEmail,
-  buildReminderPush,
-  buildTestPush,
-  obligationUrl,
-  reminderDetail,
-  reminderHeadline,
-  type ReminderSubject,
-} from '@/lib/push/payload'
-import { urlBase64ToUint8Array } from '@/lib/push/encoding'
-import { describeDevice } from '@/lib/push/device'
+import { buildDueNotices } from '@/lib/notifications/local'
+import { buildAssetsCsv, buildHistoryCsv, buildObligationsCsv, toCsv } from '@/lib/export/download'
+import { createEmptyData } from '@/lib/store/schema'
+import { addAsset, addObligation, completeObligation } from '@/lib/store/mutations'
+import type { DueObligation } from '@/types/domain'
 
-const ASSURANCE: ReminderSubject = {
-  obligationId: 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',
-  obligationName: 'Assurance',
-  assetId: 'cccccccc-3333-4333-8333-cccccccccccc',
-  assetName: 'Audi Q3',
-  dueDate: '2026-09-04',
-  daysRemaining: 7,
+const TODAY = '2026-08-27'
+
+function row(overrides: Partial<DueObligation> = {}): DueObligation {
+  return {
+    id: 'o1',
+    asset_id: 'a1',
+    name: 'Assurance',
+    type: 'payment',
+    category: 'Assurance',
+    frequency_days: 365,
+    calculation_basis: 'scheduled',
+    next_due_date: '2026-09-03',
+    expected_amount: 620,
+    currency: 'EUR',
+    reminder_days_before: [30, 7, 1, 0],
+    notes: 'Note privée à ne pas divulguer',
+    is_active: true,
+    created_at: '2026-01-01T00:00:00.000Z',
+    updated_at: '2026-01-01T00:00:00.000Z',
+    asset: { id: 'a1', name: 'Audi Q3', type: 'vehicle', subtype: 'Voiture' },
+    days_remaining: 7,
+    status: 'soon',
+    ...overrides,
+  }
 }
 
-describe('reminderHeadline', () => {
-  it('annonce une échéance à venir', () => {
-    expect(reminderHeadline(ASSURANCE)).toBe('Assurance Audi Q3 dans 7 jours')
+describe('buildDueNotices', () => {
+  it('notifie à un seuil configuré', () => {
+    const notices = buildDueNotices([row()], TODAY)
+    expect(notices).toHaveLength(1)
+    expect(notices[0]?.title).toBe('Patrimoine')
+    expect(notices[0]?.body).toContain('Assurance Audi Q3 dans 7 j')
+    expect(notices[0]?.body).toContain('Échéance : 3 septembre 2026')
   })
 
-  it('annonce demain', () => {
-    expect(reminderHeadline({ ...ASSURANCE, daysRemaining: 1 })).toBe('Assurance Audi Q3 demain')
+  it('ne notifie pas hors des seuils configurés', () => {
+    // J-8 n'est pas dans [30, 7, 1, 0].
+    expect(buildDueNotices([row({ next_due_date: '2026-09-04', days_remaining: 8 })], TODAY))
+      .toHaveLength(0)
   })
 
   it('annonce le jour J sans compte à rebours', () => {
-    expect(reminderHeadline({ ...ASSURANCE, daysRemaining: 0 })).toBe('Assurance — Audi Q3')
-    expect(reminderDetail({ ...ASSURANCE, daysRemaining: 0 })).toBe("Échéance aujourd'hui")
+    const notices = buildDueNotices([row({ next_due_date: TODAY, days_remaining: 0 })], TODAY)
+    expect(notices[0]?.body).toContain('Assurance — Audi Q3')
+    expect(notices[0]?.body).toContain("Échéance aujourd'hui")
   })
 
-  it('annonce un retard, avec accord du pluriel', () => {
-    expect(
-      reminderHeadline({
-        ...ASSURANCE,
-        obligationName: 'Assurance habitation',
-        assetName: 'Appartement Alicante',
-        daysRemaining: -3,
-      }),
-    ).toBe('Assurance habitation Appartement Alicante en retard de 3 jours')
-
-    expect(reminderHeadline({ ...ASSURANCE, daysRemaining: -1 })).toContain('en retard de 1 jour')
-  })
-})
-
-describe('buildReminderPush', () => {
-  const payload = buildReminderPush(ASSURANCE)
-
-  it('utilise le nom de l’application comme titre', () => {
-    expect(payload.title).toBe('Patrimoine')
-  })
-
-  it('résume l’échéance en deux lignes', () => {
-    expect(payload.body).toBe('Assurance Audi Q3 dans 7 jours\nÉchéance : 4 septembre 2026')
+  it('annonce un retard', () => {
+    const notices = buildDueNotices(
+      [row({ next_due_date: '2026-08-20', days_remaining: -7, status: 'overdue' })],
+      TODAY,
+    )
+    expect(notices[0]?.body).toContain('en retard de 7 j')
   })
 
   it('ouvre directement l’obligation concernée', () => {
-    expect(payload.url).toBe(
-      '/assets/cccccccc-3333-4333-8333-cccccccccccc?obligation=aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',
-    )
-    expect(payload.url).toBe(obligationUrl(ASSURANCE.assetId, ASSURANCE.obligationId))
+    expect(buildDueNotices([row()], TODAY)[0]?.url).toBe('/assets/a1?obligation=o1')
   })
 
-  it('porte un tag stable pour éviter les notifications empilées', () => {
-    expect(payload.tag).toBe(`obligation-${ASSURANCE.obligationId}-2026-09-04`)
-    // Une échéance différente doit produire un tag différent.
-    expect(buildReminderPush({ ...ASSURANCE, dueDate: '2027-09-04' }).tag).not.toBe(payload.tag)
+  it('produit une clé distincte par obligation, échéance et seuil', () => {
+    const first = buildDueNotices([row()], TODAY)[0]!
+    const other = buildDueNotices([row({ id: 'o2' })], TODAY)[0]!
+    const later = buildDueNotices(
+      [row({ next_due_date: '2027-09-03' })],
+      '2027-08-27',
+    )[0]!
+
+    expect(first.key).not.toBe(other.key)
+    expect(first.key).not.toBe(later.key)
   })
 
-  it('ne transporte aucune donnée sensible', () => {
-    const serialized = JSON.stringify(
-      buildReminderPush({ ...ASSURANCE, obligationName: 'Assurance' }),
-    )
-    // Ni montant, ni note, ni jeton : la notification s'affiche sur un écran verrouillé.
-    for (const forbidden of ['token', 'amount', 'montant', 'note', 'password', 'secret']) {
-      expect(serialized.toLowerCase()).not.toContain(forbidden)
-    }
-  })
-})
-
-describe('buildTestPush', () => {
-  it('confirme que la chaîne complète fonctionne', () => {
-    const payload = buildTestPush()
-    expect(payload.title).toBe('Patrimoine')
-    expect(payload.body).toBe('Les notifications fonctionnent correctement.')
-    expect(payload.url).toBe('/settings')
+  it('ne transporte ni note ni montant', () => {
+    const serialized = JSON.stringify(buildDueNotices([row()], TODAY))
+    expect(serialized).not.toContain('Note privée')
+    expect(serialized).not.toContain('620')
   })
 })
 
-describe('buildReminderEmail', () => {
-  it('résume une échéance unique dans l’objet', () => {
-    const { subject, text } = buildReminderEmail([ASSURANCE])
-    expect(subject).toBe('Patrimoine — Assurance Audi Q3 dans 7 jours')
-    expect(text).toContain('Assurance — Audi Q3')
-    expect(text).toContain('4 septembre 2026')
-    expect(text).toContain('Dans 7 j')
+describe('toCsv', () => {
+  it('échappe guillemets, virgules et sauts de ligne', () => {
+    expect(toCsv(['a', 'b'], [['x,y', 'il a dit "oui"']])).toContain('"x,y","il a dit ""oui"""')
   })
 
-  it('regroupe plusieurs échéances en un seul message', () => {
-    const { subject, text } = buildReminderEmail([
-      ASSURANCE,
-      { ...ASSURANCE, obligationName: 'Électricité', assetName: 'Appartement Milan', daysRemaining: -2, dueDate: '2026-08-25' },
-    ])
-    expect(subject).toBe('Patrimoine — 2 échéances à surveiller')
-    expect(text).toContain('Assurance — Audi Q3')
-    expect(text).toContain('Électricité — Appartement Milan')
-    expect(text).toContain('En retard de 2 j')
-  })
-})
-
-describe('urlBase64ToUint8Array', () => {
-  it('décode une clé VAPID base64 URL-safe', () => {
-    // Clé publique VAPID : 65 octets, préfixe 0x04 (point EC non compressé).
-    const key =
-      'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U'
-    const bytes = urlBase64ToUint8Array(key)
-    expect(bytes).toBeInstanceOf(Uint8Array)
-    expect(bytes.length).toBe(65)
-    expect(bytes[0]).toBe(4)
+  it('neutralise les cellules interprétables comme des formules', () => {
+    const csv = toCsv(['nom'], [['=1+1'], ['@import'], ['+42']])
+    expect(csv).toContain("'=1+1")
+    expect(csv).toContain("'@import")
+    expect(csv).toContain("'+42")
   })
 
-  it('gère le padding manquant', () => {
-    expect(Array.from(urlBase64ToUint8Array('AQAB'))).toEqual([1, 0, 1])
-    expect(Array.from(urlBase64ToUint8Array('_w'))).toEqual([255])
+  it('laisse les nombres négatifs intacts', () => {
+    expect(toCsv(['ecart'], [[-5]])).toContain('-5')
   })
 
-  it('traduit les caractères URL-safe', () => {
-    // « -_ » en URL-safe correspond à « +/ » en base64 standard.
-    expect(Array.from(urlBase64ToUint8Array('-_8'))).toEqual(
-      Array.from(Buffer.from('+/8=', 'base64')),
-    )
+  it('commence par un BOM pour que les accents s’ouvrent bien dans Excel', () => {
+    expect(toCsv(['nom'], [['Électricité']]).startsWith('﻿')).toBe(true)
   })
 })
 
-describe('describeDevice', () => {
-  it('nomme les appareils de façon lisible', () => {
-    expect(describeDevice('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1')).toBe('iPhone')
-    expect(describeDevice('Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) Safari/604.1')).toBe('iPad')
-    expect(
-      describeDevice('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131.0.0.0 Safari/537.36'),
-    ).toBe('Chrome · Windows')
-    expect(
-      describeDevice('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Version/17.0 Safari/605.1'),
-    ).toBe('Safari · Mac')
-    expect(
-      describeDevice('Mozilla/5.0 (Windows NT 10.0) Chrome/131.0.0.0 Safari/537.36 Edg/131.0'),
-    ).toBe('Edge · Windows')
+describe('exports', () => {
+  const build = () => {
+    let data = addAsset(createEmptyData(), {
+      name: 'Audi Q3',
+      type: 'vehicle',
+      subtype: 'Voiture',
+      country: 'France',
+      city: 'Lyon',
+      address: null,
+      default_currency: 'EUR',
+      notes: null,
+    })
+    data = addObligation(data, {
+      asset_id: data.assets[0]!.id,
+      name: 'Assurance',
+      type: 'payment',
+      category: 'Assurance',
+      frequency_days: 365,
+      calculation_basis: 'scheduled',
+      next_due_date: '2026-09-04',
+      expected_amount: 620,
+      currency: 'EUR',
+      reminder_days_before: [30, 7],
+      notes: null,
+    })
+    return completeObligation(
+      data,
+      {
+        obligation_id: data.obligations[0]!.id,
+        completed_date: '2026-09-03',
+        actual_amount: 615,
+        notes: null,
+        advance_until_future: false,
+      },
+      TODAY,
+    )!.data
+  }
+
+  it('exporte les biens', () => {
+    const csv = buildAssetsCsv(build())
+    expect(csv).toContain('nom,type,sous_type')
+    expect(csv).toContain('Audi Q3,Véhicule,Voiture')
   })
 
-  it('reste neutre sur un appareil inconnu', () => {
-    expect(describeDevice('un-agent-inconnu/1.0')).toBe('Cet appareil')
+  it('exporte les obligations avec la fréquence en jours', () => {
+    const csv = buildObligationsCsv(build())
+    expect(csv).toContain('Audi Q3,Assurance,Paiement,Assurance,365,Date prévue')
+    expect(csv).toContain('30 7')
+  })
+
+  it('exporte l’historique avec l’écart calculé', () => {
+    const csv = buildHistoryCsv(build())
+    expect(csv).toContain('2026-09-04,2026-09-03,Audi Q3,Assurance,620,615,-5,EUR')
   })
 })

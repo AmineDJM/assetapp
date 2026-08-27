@@ -1,9 +1,10 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import { toast } from 'sonner'
-import { setObligationArchived } from '@/actions/obligations'
+import { setObligationArchived } from '@/lib/store/mutations'
+import { useStore } from '@/lib/store/provider'
 import { CompleteDialog } from '@/components/obligations/complete-dialog'
 import { ObligationFormDialog } from '@/components/obligations/obligation-form-dialog'
 import { ObligationTable } from '@/components/obligations/obligation-table'
@@ -29,8 +30,7 @@ import {
   type ScopeFilter,
 } from '@/lib/filters'
 import { OBLIGATION_TYPE_LABELS, OBLIGATION_TYPES } from '@/lib/taxonomy'
-import type { AssetOption } from '@/lib/data/queries'
-import type { DueObligation, Obligation, ObligationType } from '@/types/domain'
+import type { AssetOption, DueObligation, Obligation, ObligationType } from '@/types/domain'
 
 /**
  * Panneau d'échéances partagé par le Dashboard et la page Échéances.
@@ -59,7 +59,7 @@ export function ObligationsPanel({
   const [filters, setFilters] = useState<ObligationFilters>(EMPTY_FILTERS)
   const [completing, setCompleting] = useState<DueObligation | null>(null)
   const [editing, setEditing] = useState<Obligation | null>(null)
-  const [, startTransition] = useTransition()
+  const { update: updateStore } = useStore()
 
   const counts = useMemo(() => countByHorizon(rows), [rows])
   const visible = useMemo(() => filterObligations(rows, filters), [rows, filters])
@@ -79,24 +79,16 @@ export function ObligationsPanel({
   }
 
   function handleArchive(row: DueObligation) {
-    startTransition(async () => {
-      const result = await setObligationArchived(row.id, true)
-      if (!result.ok) {
-        toast.error(result.error)
-        return
-      }
-      toast.success('Obligation archivée', {
-        description: row.name,
-        action: {
-          label: 'Annuler',
-          onClick: () => {
-            void setObligationArchived(row.id, false).then((undone) => {
-              if (undone.ok) toast.success('Obligation restaurée')
-              else toast.error(undone.error)
-            })
-          },
+    updateStore((current) => setObligationArchived(current, row.id, true))
+    toast.success('Obligation archivée', {
+      description: row.name,
+      action: {
+        label: 'Annuler',
+        onClick: () => {
+          updateStore((current) => setObligationArchived(current, row.id, false))
+          toast.success('Obligation restaurée')
         },
-      })
+      },
     })
   }
 

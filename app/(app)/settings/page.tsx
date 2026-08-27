@@ -1,38 +1,21 @@
-import type { Metadata } from 'next'
-import { ArchivedList } from '@/components/settings/archived-list'
-import { DataExport } from '@/components/settings/data-export'
-import { ProfileForm } from '@/components/settings/profile-form'
-import { PushSettings } from '@/components/settings/push-settings'
-import { SettingsSection } from '@/components/settings/section'
-import { requireSession } from '@/lib/data/session'
-import { getPushDevices } from '@/lib/data/queries'
-import { createClient } from '@/lib/supabase/server'
-import { isEmailConfigured } from '@/lib/reminders/email'
-import type { Obligation } from '@/types/domain'
+'use client'
 
-export const metadata: Metadata = { title: 'Paramètres' }
+import { ArchivedList } from '@/components/settings/archived-list'
+import { DataManagement } from '@/components/settings/data-management'
+import { NotificationsSettings } from '@/components/settings/notifications-settings'
+import { ProfileForm } from '@/components/settings/profile-form'
+import { SettingsSection } from '@/components/settings/section'
+import { PageSkeleton } from '@/components/ui/page-skeleton'
+import { useStore } from '@/lib/store/provider'
+import { selectArchived } from '@/lib/store/selectors'
 
 /** Un seul rôle : comment fonctionne mon application ? */
-export default async function SettingsPage() {
-  const { user, profile } = await requireSession()
-  const supabase = await createClient()
+export default function SettingsPage() {
+  const { data, hydrated } = useStore()
 
-  const [devices, archivedAssets, archivedObligations] = await Promise.all([
-    getPushDevices(),
-    supabase.from('assets').select('*').eq('is_active', false).order('name'),
-    supabase
-      .from('obligations')
-      .select('*, asset:assets!inner (name)')
-      .eq('is_active', false)
-      .order('name'),
-  ])
+  if (!hydrated) return <PageSkeleton />
 
-  // Le join Supabase imbrique le bien : on l'aplatit pour l'affichage.
-  type ArchivedObligationRow = Obligation & { asset: { name: string } }
-
-  const obligations = ((archivedObligations.data ?? []) as unknown as ArchivedObligationRow[]).map(
-    ({ asset, ...obligation }) => ({ ...obligation, assetName: asset.name }),
-  )
+  const archived = selectArchived(data)
 
   return (
     <div>
@@ -42,36 +25,28 @@ export default async function SettingsPage() {
 
       <div className="space-y-4">
         <SettingsSection title="Profil">
-          <ProfileForm
-            profile={profile}
-            email={user.email ?? ''}
-            emailConfigured={isEmailConfigured()}
-          />
+          <ProfileForm profile={data.profile} />
         </SettingsSection>
 
         <SettingsSection
-          title="Notifications sur cet appareil"
-          description="Recevoir les rappels même lorsque l’application est fermée."
+          title="Notifications"
+          description="Patrimoine fonctionne sans serveur : les rappels s’affichent à l’ouverture de l’application, jamais quand elle est fermée."
         >
-          <PushSettings
-            vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
-            devices={devices}
-            timezone={profile.timezone}
-          />
+          <NotificationsSettings />
         </SettingsSection>
 
         <SettingsSection
-          title="Exporter les données"
-          description="Tes données t’appartiennent : récupère-les à tout moment."
+          title="Mes données"
+          description="Tout est stocké dans ce navigateur, rien n’est envoyé nulle part."
         >
-          <DataExport />
+          <DataManagement />
         </SettingsSection>
 
         <SettingsSection
           title="Éléments archivés"
           description="Les éléments archivés n’apparaissent plus dans les écrans actifs, mais leur historique reste intact."
         >
-          <ArchivedList assets={archivedAssets.data ?? []} obligations={obligations} />
+          <ArchivedList assets={archived.assets} obligations={archived.obligations} />
         </SettingsSection>
       </div>
     </div>

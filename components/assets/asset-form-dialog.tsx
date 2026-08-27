@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useTransition } from 'react'
+import { useEffect } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
-import { createAsset, updateAsset } from '@/actions/assets'
+import { addAsset, editAsset } from '@/lib/store/mutations'
+import { useStore } from '@/lib/store/provider'
+import { assetInputSchema } from '@/lib/validation/schemas'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -18,7 +20,7 @@ import { Input, Textarea } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ASSET_TYPE_LABELS, subtypesFor } from '@/lib/taxonomy'
 import { CURRENCY_OPTIONS } from '@/lib/currency'
-import { applyServerErrors, fieldError } from '@/lib/utils/form'
+import { fieldError, validateForm } from '@/lib/utils/form'
 import type { Asset, AssetType } from '@/types/domain'
 
 interface FormValues {
@@ -58,9 +60,9 @@ export function AssetFormDialog({
   onOpenChange: (open: boolean) => void
   asset?: Asset | null
   defaultType?: AssetType
-  onSaved?: (asset: Asset) => void
+  onSaved?: () => void
 }) {
-  const [pending, startTransition] = useTransition()
+  const { update } = useStore()
   const isEdit = asset !== null
 
   const {
@@ -83,24 +85,24 @@ export function AssetFormDialog({
   const type = useWatch({ control, name: 'type' })
 
   const onSubmit = handleSubmit((values) => {
-    startTransition(async () => {
-      const payload = {
-        ...values,
-        subtype: values.subtype === NONE ? '' : values.subtype,
-        default_currency: values.default_currency === NONE ? '' : values.default_currency,
-      }
-      const result = isEdit ? await updateAsset(asset.id, payload) : await createAsset(payload)
+    const parsed = validateForm(assetInputSchema, {
+      ...values,
+      subtype: values.subtype === NONE ? '' : values.subtype,
+      default_currency: values.default_currency === NONE ? '' : values.default_currency,
+    }, setError)
 
-      if (!result.ok) {
-        applyServerErrors(setError, result)
-        toast.error(result.error)
-        return
-      }
+    if (!parsed.ok) {
+      toast.error(parsed.message)
+      return
+    }
 
-      toast.success(isEdit ? 'Modifications enregistrées' : 'Bien ajouté')
-      onOpenChange(false)
-      onSaved?.(result.data)
-    })
+    update((current) =>
+      isEdit ? editAsset(current, asset.id, parsed.value) : addAsset(current, parsed.value),
+    )
+
+    toast.success(isEdit ? 'Modifications enregistrées' : 'Bien ajouté')
+    onOpenChange(false)
+    onSaved?.()
   })
 
   return (
@@ -222,8 +224,8 @@ export function AssetFormDialog({
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
-            <Button type="submit" variant="primary" disabled={pending}>
-              {pending ? 'Enregistrement…' : isEdit ? 'Enregistrer' : 'Ajouter'}
+            <Button type="submit" variant="primary">
+              {isEdit ? 'Enregistrer' : 'Ajouter'}
             </Button>
           </DialogFooter>
         </form>

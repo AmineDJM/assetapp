@@ -2,7 +2,7 @@
   "name": "patrimoine",
   "version": "1.0.0",
   "private": true,
-  "description": "Gestion personnelle des biens, v\u00e9hicules et \u00e9ch\u00e9ances r\u00e9currentes.",
+  "description": "Biens, v\u00e9hicules et \u00e9ch\u00e9ances r\u00e9currentes \u2014 100 % local, sans serveur ni base de donn\u00e9es.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,11 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:db": "bash scripts/test-db.sh",
     "test:watch": "vitest",
-    "seed": "tsx --env-file-if-exists=.env.local scripts/seed.ts",
-    "generate:icons": "node scripts/generate-icons.mjs",
-    "generate:vapid": "node scripts/generate-vapid.mjs"
+    "generate:icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.11",
@@ -25,8 +22,6 @@
     "@radix-ui/react-radio-group": "^1.4.7",
     "@radix-ui/react-select": "^2.3.7",
     "@radix-ui/react-slot": "^1.3.3",
-    "@supabase/ssr": "^0.12.5",
-    "@supabase/supabase-js": "^2.112.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
@@ -37,7 +32,6 @@
     "react-hook-form": "^7.86.0",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.6.0",
-    "web-push": "^3.6.7",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -45,11 +39,9 @@
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.0",
-    "@types/web-push": "^3.6.4",
     "eslint": "^9.39.0",
     "eslint-config-next": "^16.3.3",
     "tailwindcss": "^4.3.3",
-    "tsx": "^4.20.3",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"
   }

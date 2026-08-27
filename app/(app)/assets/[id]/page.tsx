@@ -1,52 +1,43 @@
-import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+'use client'
+
+import { use } from 'react'
 import { AssetDetail } from '@/components/assets/asset-detail'
-import { requireSession } from '@/lib/data/session'
+import { NotFoundInline } from '@/components/ui/not-found-inline'
+import { PageSkeleton } from '@/components/ui/page-skeleton'
+import { useStore } from '@/lib/store/provider'
 import {
-  getAsset,
-  getAssetHistory,
-  getAssetObligations,
-  getAssetOptions,
-} from '@/lib/data/queries'
-import { isValidUuid } from '@/lib/utils/uuid'
+  selectAssetHistory,
+  selectAssetOptions,
+  selectDueObligations,
+} from '@/lib/store/selectors'
 
-interface PageProps {
-  params: Promise<{ id: string }>
-}
+export default function AssetPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  const { data, today, hydrated } = useStore()
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { id } = await params
-  if (!isValidUuid(id)) return { title: 'Bien' }
-  const asset = await getAsset(id)
-  return { title: asset?.name ?? 'Bien' }
-}
+  if (!hydrated) return <PageSkeleton />
 
-export default async function AssetPage({ params }: PageProps) {
-  const { id } = await params
-  // Un identifiant malformé ne doit jamais atteindre la base.
-  if (!isValidUuid(id)) notFound()
-
-  const { profile, today } = await requireSession()
-
-  const asset = await getAsset(id)
-  // Le RLS renvoie déjà `null` pour le bien d'un autre utilisateur.
-  if (!asset) notFound()
-
-  const [obligations, history, assets] = await Promise.all([
-    getAssetObligations(id, today),
-    getAssetHistory(id),
-    getAssetOptions(),
-  ])
+  const asset = data.assets.find((item) => item.id === id)
+  if (!asset) {
+    return (
+      <NotFoundInline
+        title="Bien introuvable"
+        description="Ce bien n’existe pas ou a été supprimé."
+      />
+    )
+  }
 
   return (
     <AssetDetail
       asset={asset}
-      obligations={obligations}
-      history={history}
-      assets={assets}
+      obligations={selectDueObligations(data, today, true).filter(
+        (row) => row.asset_id === id && (row.is_active || !asset.is_active),
+      )}
+      history={selectAssetHistory(data, id)}
+      assets={selectAssetOptions(data)}
       today={today}
-      defaultReminderDays={profile.default_reminder_days}
-      defaultCurrency={profile.default_currency}
+      defaultReminderDays={data.profile.default_reminder_days}
+      defaultCurrency={data.profile.default_currency}
     />
   )
 }

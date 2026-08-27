@@ -1,13 +1,15 @@
-import type { Metadata } from 'next'
+'use client'
+
 import { HistoryView } from '@/components/history/history-view'
-import { requireSession } from '@/lib/data/session'
-import { getAssetOptions, getHistory } from '@/lib/data/queries'
+import { PageSkeleton } from '@/components/ui/page-skeleton'
+import { useStore } from '@/lib/store/provider'
+import { selectAssetOptions, selectHistory } from '@/lib/store/selectors'
 
-export const metadata: Metadata = { title: 'Historique' }
+/** Un seul rôle : qu'est-ce qui a déjà été effectué ? */
+export default function HistoryPage() {
+  const { data, today, hydrated } = useStore()
 
-export default async function HistoryPage() {
-  const { today } = await requireSession()
-  const [rows, assets] = await Promise.all([getHistory(), getAssetOptions()])
+  if (!hydrated) return <PageSkeleton />
 
   return (
     <div>
@@ -18,7 +20,7 @@ export default async function HistoryPage() {
         </p>
       </header>
 
-      <HistoryView rows={rows} assets={assets} today={today} />
+      <HistoryView rows={selectHistory(data)} assets={selectAssetOptions(data)} today={today} />
     </div>
   )
 }

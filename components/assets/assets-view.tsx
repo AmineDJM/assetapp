@@ -9,8 +9,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { ALL, type ScopeFilter } from '@/lib/filters'
-import type { AssetWithSummary } from '@/lib/data/queries'
-import type { AssetType } from '@/types/domain'
+import type { AssetType, AssetWithSummary } from '@/types/domain'
 
 /** Un seul rôle : qu'est-ce que je possède ou gère ? */
 export function AssetsView({ assets }: { assets: AssetWithSummary[] }) {

@@ -1,19 +1,22 @@
-import type { Metadata } from 'next'
+'use client'
+
 import { ExpectedSpend } from '@/components/dashboard/expected-spend'
-import { ObligationsPanel } from '@/components/obligations/obligations-panel'
 import { WelcomeEmptyState } from '@/components/dashboard/welcome-empty-state'
-import { requireSession } from '@/lib/data/session'
-import { getAssetOptions, getDueObligations } from '@/lib/data/queries'
+import { ObligationsPanel } from '@/components/obligations/obligations-panel'
+import { PageSkeleton } from '@/components/ui/page-skeleton'
+import { useStore } from '@/lib/store/provider'
+import { selectAssetOptions, selectDueObligations } from '@/lib/store/selectors'
 import { formatWeekdayDate } from '@/lib/dates'
 
-export const metadata: Metadata = { title: 'Dashboard' }
-
 /** Un seul rôle : que dois-je faire prochainement ? */
-export default async function DashboardPage() {
-  const { profile, today } = await requireSession()
-  const [rows, assets] = await Promise.all([getDueObligations(today), getAssetOptions()])
+export default function DashboardPage() {
+  const { data, today, hydrated } = useStore()
 
-  const greeting = profile.display_name ? `Bonjour ${profile.display_name}` : 'Bonjour'
+  if (!hydrated) return <PageSkeleton />
+
+  const rows = selectDueObligations(data, today)
+  const assets = selectAssetOptions(data)
+  const greeting = data.profile.display_name ? `Bonjour ${data.profile.display_name}` : 'Bonjour'
 
   return (
     <div>
@@ -32,13 +35,13 @@ export default async function DashboardPage() {
             rows={rows}
             today={today}
             assets={assets}
-            defaultReminderDays={profile.default_reminder_days}
-            defaultCurrency={profile.default_currency}
+            defaultReminderDays={data.profile.default_reminder_days}
+            defaultCurrency={data.profile.default_currency}
             variant="dashboard"
             title="Prochaines échéances"
           />
           <div className="mt-4">
-            <ExpectedSpend rows={rows} defaultCurrency={profile.default_currency} />
+            <ExpectedSpend rows={rows} defaultCurrency={data.profile.default_currency} />
           </div>
         </>
       )}

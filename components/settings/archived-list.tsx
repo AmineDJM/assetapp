@@ -1,9 +1,14 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
-import { deleteAsset, setAssetArchived } from '@/actions/assets'
-import { deleteObligation, setObligationArchived } from '@/actions/obligations'
+import {
+  removeAsset,
+  removeObligation,
+  setAssetArchived,
+  setObligationArchived,
+} from '@/lib/store/mutations'
+import { useStore } from '@/lib/store/provider'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -34,7 +39,7 @@ export function ArchivedList({
   assets: Asset[]
   obligations: Array<Obligation & { assetName: string }>
 }) {
-  const [pending, startTransition] = useTransition()
+  const { update } = useStore()
   const [confirming, setConfirming] = useState<Target | null>(null)
 
   if (assets.length === 0 && obligations.length === 0) {
@@ -42,31 +47,25 @@ export function ArchivedList({
   }
 
   function restore(target: Target) {
-    startTransition(async () => {
-      const result =
-        target.kind === 'asset'
-          ? await setAssetArchived(target.id, false)
-          : await setObligationArchived(target.id, false)
-
-      if (!result.ok) toast.error(result.error)
-      else toast.success('Élément restauré', { description: target.name })
-    })
+    update((current) =>
+      target.kind === 'asset'
+        ? setAssetArchived(current, target.id, false)
+        : setObligationArchived(current, target.id, false),
+    )
+    toast.success('Élément restauré', { description: target.name })
   }
 
   function confirmDelete() {
     if (!confirming) return
     const target = confirming
 
-    startTransition(async () => {
-      const result =
-        target.kind === 'asset'
-          ? await deleteAsset(target.id)
-          : await deleteObligation(target.id)
-
-      if (!result.ok) toast.error(result.error)
-      else toast.success('Supprimé définitivement', { description: target.name })
-      setConfirming(null)
-    })
+    update((current) =>
+      target.kind === 'asset'
+        ? removeAsset(current, target.id)
+        : removeObligation(current, target.id),
+    )
+    toast.success('Supprimé définitivement', { description: target.name })
+    setConfirming(null)
   }
 
   return (
@@ -82,7 +81,6 @@ export function ArchivedList({
               <Button
                 size="sm"
                 variant="ghost"
-                disabled={pending}
                 onClick={() => restore({ kind: 'asset', id: asset.id, name: asset.name })}
               >
                 Restaurer
@@ -109,7 +107,6 @@ export function ArchivedList({
               <Button
                 size="sm"
                 variant="ghost"
-                disabled={pending}
                 onClick={() =>
                   restore({ kind: 'obligation', id: obligation.id, name: obligation.name })
                 }
@@ -148,8 +145,8 @@ export function ArchivedList({
             <Button variant="ghost" onClick={() => setConfirming(null)}>
               Annuler
             </Button>
-            <Button variant="danger" onClick={confirmDelete} disabled={pending}>
-              {pending ? 'Suppression…' : 'Supprimer définitivement'}
+            <Button variant="danger" onClick={confirmDelete}>
+              Supprimer définitivement
             </Button>
           </DialogFooter>
         </DialogContent>

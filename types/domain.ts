@@ -3,7 +3,10 @@
  *
  * Convention de dates : toute date *métier* (échéance, réalisation) est une
  * date pure au format ISO `YYYY-MM-DD`, jamais un instant. Les horodatages
- * système (`created_at`, `sent_at`) restent des `timestamptz`.
+ * (`created_at`) sont des ISO complets.
+ *
+ * Aucune notion d'utilisateur : les données vivent dans le navigateur, il n'y
+ * a qu'une seule personne.
  */
 
 /** Date métier au format `YYYY-MM-DD`. */
@@ -23,22 +26,17 @@ export type ObligationType =
 
 export type DueStatus = 'overdue' | 'today' | 'soon' | 'upcoming'
 
-export type ReminderChannel = 'email' | 'push'
-
 export interface Profile {
-  id: string
   display_name: string | null
   timezone: string
   default_currency: string
-  email_reminders_enabled: boolean
   default_reminder_days: number[]
-  created_at: string
-  updated_at: string
+  /** Notification système à l'ouverture pour les échéances à échéance. */
+  notifications_enabled: boolean
 }
 
 export interface Asset {
   id: string
-  user_id: string
   name: string
   type: AssetType
   subtype: string | null
@@ -54,7 +52,6 @@ export interface Asset {
 
 export interface Obligation {
   id: string
-  user_id: string
   asset_id: string
   name: string
   type: ObligationType
@@ -73,7 +70,6 @@ export interface Obligation {
 
 export interface ObligationCompletion {
   id: string
-  user_id: string
   obligation_id: string
   scheduled_due_date: DateString
   completed_date: DateString
@@ -82,19 +78,6 @@ export interface ObligationCompletion {
   currency: string | null
   notes: string | null
   created_at: string
-}
-
-export interface PushSubscriptionRecord {
-  id: string
-  user_id: string
-  endpoint: string
-  p256dh: string
-  auth: string
-  user_agent: string | null
-  device_name: string | null
-  created_at: string
-  updated_at: string
-  last_used_at: string | null
 }
 
 /** Obligation enrichie de son bien et des champs calculés (jamais stockés). */
@@ -111,3 +94,12 @@ export interface CompletionWithContext extends ObligationCompletion {
   obligation: Pick<Obligation, 'id' | 'name' | 'type' | 'category' | 'frequency_days'>
   asset: Pick<Asset, 'id' | 'name' | 'type'>
 }
+
+/** Bien accompagné de son résumé d'échéances, pour la page Biens. */
+export interface AssetWithSummary extends Asset {
+  obligation_count: number
+  next_obligation: DueObligation | null
+}
+
+/** Option de sélection d'un bien dans les formulaires. */
+export type AssetOption = Pick<Asset, 'id' | 'name' | 'type' | 'default_currency'>

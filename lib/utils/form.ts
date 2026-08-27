@@ -1,22 +1,38 @@
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form'
-import type { ActionResult } from '@/actions/result'
+import type { z } from 'zod'
 
 /**
- * Reporte les erreurs renvoyées par une Server Action dans le formulaire.
+ * Pont entre les schémas Zod et React Hook Form.
  *
- * Les formulaires n'embarquent pas de second schéma de validation : la
- * validation Zod du serveur est la seule autorité, et ses messages
- * remontent ici champ par champ. Une règle, un endroit.
+ * La validation Zod est la seule autorité : les formulaires n'embarquent pas
+ * de second jeu de règles. Une règle, un endroit.
  */
-export function applyServerErrors<T extends FieldValues>(
-  setError: UseFormSetError<T>,
-  result: Extract<ActionResult<unknown>, { ok: false }>,
-): void {
-  if (!result.fieldErrors) return
-  for (const [field, messages] of Object.entries(result.fieldErrors)) {
-    const message = messages?.[0]
-    if (message) setError(field as Path<T>, { type: 'server', message })
+
+export type ValidationOutcome<T> =
+  | { ok: true; value: T }
+  | { ok: false; message: string }
+
+/**
+ * Valide une saisie et reporte les erreurs champ par champ dans le formulaire.
+ * Renvoie la valeur normalisée par le schéma en cas de succès.
+ */
+export function validateForm<Schema extends z.ZodType, Values extends FieldValues>(
+  schema: Schema,
+  input: unknown,
+  setError: UseFormSetError<Values>,
+): ValidationOutcome<z.infer<Schema>> {
+  const parsed = schema.safeParse(input)
+  if (parsed.success) return { ok: true, value: parsed.data }
+
+  for (const issue of parsed.error.issues) {
+    const field = issue.path[0]
+    if (typeof field === 'string') {
+      setError(field as Path<Values>, { type: 'validation', message: issue.message })
+    }
   }
+
+  const first = parsed.error.issues[0]
+  return { ok: false, message: first?.message ?? 'Vérifie les champs du formulaire.' }
 }
 
 /** Première erreur d'un champ, prête à passer à `<Field error=…>`. */

@@ -16,8 +16,7 @@ import {
 import { differenceInDays } from '@/lib/dates'
 import { ALL } from '@/lib/filters'
 import { OBLIGATION_TYPE_LABELS, OBLIGATION_TYPES } from '@/lib/taxonomy'
-import type { AssetOption } from '@/lib/data/queries'
-import type { CompletionWithContext } from '@/types/domain'
+import type { AssetOption, CompletionWithContext } from '@/types/domain'
 
 type Period = 'all' | '30' | '90' | '365'
 

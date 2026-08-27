@@ -6,12 +6,14 @@ import { isValidTimeZone } from '@/lib/dates'
 /**
  * Schémas de validation.
  *
- * Ils sont appliqués **côté serveur**, dans les Server Actions, avant toute
- * écriture. Le formulaire réutilise les mêmes schémas pour un retour immédiat,
- * mais la validation client n'est qu'un confort : elle n'est jamais la barrière.
+ * Appliqués avant toute écriture dans le magasin. Les données vivant dans le
+ * navigateur, il n'y a qu'une barrière — celle-ci — et c'est bien elle qui
+ * empêche d'enregistrer une fréquence nulle ou une date impossible.
  */
 
-const uuid = z.string().uuid("Identifiant invalide")
+// Les identifiants sont générés localement (`crypto.randomUUID`, avec un repli
+// hors contexte sécurisé) : on valide une chaîne non vide, pas un format UUID.
+const identifier = z.string().min(1, 'Identifiant invalide').max(64)
 
 const dateString = z
   .string()
@@ -82,7 +84,7 @@ export const reminderDaysSchema = z
   .max(8, 'Huit rappels au maximum')
 
 export const obligationInputSchema = z.object({
-  asset_id: uuid,
+  asset_id: identifier,
   name: z.string().trim().min(1, 'Le nom est obligatoire').max(120, 'Maximum 120 caractères'),
   type: obligationTypeSchema,
   category: optionalText(60),
@@ -105,7 +107,7 @@ export const obligationInputSchema = z.object({
 export type ObligationInput = z.infer<typeof obligationInputSchema>
 
 export const completionInputSchema = z.object({
-  obligation_id: uuid,
+  obligation_id: identifier,
   completed_date: dateString,
   actual_amount: optionalAmount,
   notes: optionalText(1000),
@@ -126,20 +128,10 @@ export const profileInputSchema = z.object({
     .min(1, 'Le fuseau horaire est obligatoire')
     .refine(isValidTimeZone, { message: 'Fuseau horaire inconnu' }),
   default_currency: currencyCode,
-  email_reminders_enabled: z.boolean(),
+  notifications_enabled: z.boolean(),
   default_reminder_days: reminderDaysSchema,
 })
 
 export type ProfileInput = z.infer<typeof profileInputSchema>
 
-export const pushSubscriptionInputSchema = z.object({
-  endpoint: z.string().url('Endpoint invalide').max(1000),
-  p256dh: z.string().min(1).max(500),
-  auth: z.string().min(1).max(500),
-  user_agent: optionalText(400),
-  device_name: optionalText(80),
-})
-
-export type PushSubscriptionInput = z.infer<typeof pushSubscriptionInputSchema>
-
-export const idSchema = uuid
+export const idSchema = identifier

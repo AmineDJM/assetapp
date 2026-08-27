@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // The service worker must be allowed to control the whole origin.
+        // Le Service Worker doit pouvoir contrôler toute l'origine.
         source: '/sw.js',
         headers: [
           { key: 'Service-Worker-Allowed', value: '/' },

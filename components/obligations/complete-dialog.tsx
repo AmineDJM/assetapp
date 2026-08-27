@@ -1,8 +1,10 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { markObligationComplete, undoObligationCompletion } from '@/actions/completions'
+import { completeObligation, undoCompletion } from '@/lib/store/mutations'
+import { useStore } from '@/lib/store/provider'
+import { completionInputSchema } from '@/lib/validation/schemas'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -68,7 +70,7 @@ function CompletionForm({
   const [actualAmount, setActualAmount] = useState('')
   const [notes, setNotes] = useState('')
   const [advance, setAdvance] = useState(false)
-  const [pending, startTransition] = useTransition()
+  const { update } = useStore()
 
   const preview = useMemo(() => {
     if (!isValidDateString(completedDate)) return null
@@ -88,35 +90,48 @@ function CompletionForm({
   }, [obligation, completedDate, today])
 
   function handleConfirm() {
-    startTransition(async () => {
-      const result = await markObligationComplete({
-        obligation_id: obligation.id,
-        completed_date: completedDate,
-        actual_amount: actualAmount,
-        notes,
-        advance_until_future: advance,
-      })
+    const parsed = completionInputSchema.safeParse({
+      obligation_id: obligation.id,
+      completed_date: completedDate,
+      actual_amount: actualAmount,
+      notes,
+      advance_until_future: advance,
+    })
 
-      if (!result.ok) {
-        toast.error(result.error)
-        return
-      }
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? 'Vérifie les champs du formulaire.')
+      return
+    }
 
-      const { completionId, obligationName, nextDueDateLabel } = result.data
-      onOpenChange(false)
+    let outcome: ReturnType<typeof completeObligation> = null
+    update((current) => {
+      outcome = completeObligation(current, parsed.data, today)
+      return outcome ? outcome.data : current
+    })
 
-      toast.success(`${obligationName} — effectué`, {
-        description: `Prochaine échéance : ${nextDueDateLabel}`,
-        action: {
-          label: 'Annuler',
-          onClick: () => {
-            void undoObligationCompletion(completionId).then((undone) => {
-              if (undone.ok) toast.success('Validation annulée')
-              else toast.error(undone.error)
-            })
-          },
+    if (!outcome) {
+      toast.error('Obligation introuvable.')
+      return
+    }
+
+    const { completionId, obligationName, nextDueDate } = outcome as NonNullable<typeof outcome>
+    onOpenChange(false)
+
+    toast.success(`${obligationName} — effectué`, {
+      description: `Prochaine échéance : ${formatLongDate(nextDueDate)}`,
+      action: {
+        label: 'Annuler',
+        onClick: () => {
+          let undone = false
+          update((current) => {
+            const result = undoCompletion(current, completionId)
+            undone = result !== null
+            return result ? result.data : current
+          })
+          if (undone) toast.success('Validation annulée')
+          else toast.error('Seule la dernière validation peut être annulée.')
         },
-      })
+      },
     })
   }
 
@@ -216,9 +231,9 @@ function CompletionForm({
         <Button
           variant="primary"
           onClick={handleConfirm}
-          disabled={pending || preview === null}
+          disabled={preview === null}
         >
-          {pending ? 'Enregistrement…' : 'Confirmer'}
+          Confirmer
         </Button>
       </DialogFooter>
     </div>

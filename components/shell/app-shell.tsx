@@ -3,6 +3,12 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils/cn'
+import { useStore } from '@/lib/store/provider'
+import { selectAssetOptions, selectDueObligations } from '@/lib/store/selectors'
+import { AppBadgeSync } from './app-badge-sync'
+import { NotificationBell } from './notification-bell'
+import { QuickAdd } from './quick-add'
+import { StorageWarning } from './storage-warning'
 import { isActivePath, NAV_ITEMS } from './nav'
 
 /**
@@ -11,20 +17,30 @@ import { isActivePath, NAV_ITEMS } from './nav'
  * Desktop : barre latérale étroite. Mobile : en-tête compact et barre
  * d'onglets en bas, dans la zone du pouce.
  */
-export function AppShell({
-  children,
-  headerActions,
-  userEmail,
-}: {
-  children: React.ReactNode
-  headerActions: React.ReactNode
-  userEmail: string
-}) {
+export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const current = NAV_ITEMS.find((item) => isActivePath(pathname, item.href))
+  const { data, today, hydrated } = useStore()
+
+  const rows = selectDueObligations(data, today)
+  const assets = selectAssetOptions(data)
+  const attention = rows.filter((row) => row.days_remaining <= 0).length
+
+  const headerActions = (
+    <>
+      <NotificationBell rows={rows} today={today} />
+      <QuickAdd
+        assets={assets}
+        defaultReminderDays={data.profile.default_reminder_days}
+        defaultCurrency={data.profile.default_currency}
+        today={today}
+      />
+    </>
+  )
 
   return (
     <div className="min-h-dvh">
+      <AppBadgeSync count={hydrated ? attention : 0} />
       {/* Barre latérale — desktop */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col border-r border-line bg-surface lg:flex">
         <div className="px-5 pb-6 pt-6">
@@ -56,9 +72,7 @@ export function AppShell({
         </nav>
 
         <div className="border-t border-line px-5 py-4">
-          <p className="truncate text-xs text-subtle" title={userEmail}>
-            {userEmail}
-          </p>
+          <p className="text-xs text-subtle">Données locales à cet appareil</p>
         </div>
       </aside>
 
@@ -77,6 +91,7 @@ export function AppShell({
         </div>
 
         <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6 sm:px-6 lg:px-8 lg:pb-16 lg:pt-8">
+          <StorageWarning />
           {children}
         </main>
       </div>

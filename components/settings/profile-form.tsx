@@ -1,9 +1,10 @@
 'use client'
 
-import { useTransition } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
-import { updateProfile } from '@/actions/settings'
+import { editProfile } from '@/lib/store/mutations'
+import { useStore } from '@/lib/store/provider'
+import { profileInputSchema } from '@/lib/validation/schemas'
 import { ReminderPicker } from '@/components/obligations/reminder-picker'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -18,27 +19,19 @@ import {
 } from '@/components/ui/select'
 import { CURRENCY_OPTIONS } from '@/lib/currency'
 import { TIMEZONE_OPTIONS } from '@/lib/timezones'
-import { applyServerErrors, fieldError } from '@/lib/utils/form'
+import { fieldError, validateForm } from '@/lib/utils/form'
 import type { Profile } from '@/types/domain'
 
 interface FormValues {
   display_name: string
   timezone: string
   default_currency: string
-  email_reminders_enabled: boolean
+  notifications_enabled: boolean
   default_reminder_days: number[]
 }
 
-export function ProfileForm({
-  profile,
-  email,
-  emailConfigured,
-}: {
-  profile: Profile
-  email: string
-  emailConfigured: boolean
-}) {
-  const [pending, startTransition] = useTransition()
+export function ProfileForm({ profile }: { profile: Profile }) {
+  const { update } = useStore()
 
   const {
     register,
@@ -52,22 +45,21 @@ export function ProfileForm({
       display_name: profile.display_name ?? '',
       timezone: profile.timezone,
       default_currency: profile.default_currency,
-      email_reminders_enabled: profile.email_reminders_enabled,
+      notifications_enabled: profile.notifications_enabled,
       default_reminder_days: [...profile.default_reminder_days],
     },
   })
 
   const onSubmit = handleSubmit((values) => {
-    startTransition(async () => {
-      const result = await updateProfile(values)
-      if (!result.ok) {
-        applyServerErrors(setError, result)
-        toast.error(result.error)
-        return
-      }
-      toast.success('Modifications enregistrées')
-      reset(values)
-    })
+    const parsed = validateForm(profileInputSchema, values, setError)
+    if (!parsed.ok) {
+      toast.error(parsed.message)
+      return
+    }
+
+    update((current) => editProfile(current, parsed.value))
+    toast.success('Modifications enregistrées')
+    reset(values)
   })
 
   return (
@@ -77,9 +69,6 @@ export function ProfileForm({
           <Input {...register('display_name')} placeholder="Amine" autoComplete="name" />
         </Field>
 
-        <Field id="profile-email" label="Email">
-          <Input value={email} readOnly disabled aria-label="Adresse email du compte" />
-        </Field>
 
         <Field
           id="profile-timezone"
@@ -151,30 +140,29 @@ export function ProfileForm({
       <div className="space-y-1.5">
         <Controller
           control={control}
-          name="email_reminders_enabled"
+          name="notifications_enabled"
           render={({ field }) => (
             <label className="flex cursor-pointer items-center gap-2.5">
               <Checkbox
                 checked={field.value}
                 onCheckedChange={(checked) => field.onChange(checked === true)}
-                aria-label="Rappels par email"
+                aria-label="Notification système à l’ouverture"
               />
-              <span className="text-[13px] text-ink">Rappels par email</span>
+              <span className="text-[13px] text-ink">
+                Notification système à l’ouverture de l’application
+              </span>
             </label>
           )}
         />
-        {!emailConfigured ? (
-          <p className="text-xs text-muted">
-            Aucun fournisseur email n’est configuré sur ce déploiement (RESEND_API_KEY absente) :
-            les rappels email sont ignorés. Les notifications push et in-app fonctionnent
-            normalement.
-          </p>
-        ) : null}
+        <p className="text-xs leading-relaxed text-muted">
+          Affiche une vraie notification de l’appareil pour les échéances qui arrivent, au
+          moment où tu ouvres Patrimoine. Elle reste ensuite dans ton centre de notifications.
+        </p>
       </div>
 
       <div className="flex justify-end">
-        <Button type="submit" variant="primary" disabled={pending || !isDirty}>
-          {pending ? 'Enregistrement…' : 'Enregistrer'}
+        <Button type="submit" variant="primary" disabled={!isDirty}>
+          Enregistrer
         </Button>
       </div>
     </form>

@@ -11,8 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { AssetOption } from '@/lib/data/queries'
-import type { AssetType } from '@/types/domain'
+import type { AssetOption, AssetType } from '@/types/domain'
 
 /** Créer un bien, un véhicule ou une obligation en deux clics, depuis n'importe quel écran. */
 export function QuickAdd({

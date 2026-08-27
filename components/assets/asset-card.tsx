@@ -3,7 +3,7 @@ import { Building2, Car } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/badge'
 import { formatCompactDate } from '@/lib/dates'
 import { ASSET_TYPE_LABELS } from '@/lib/taxonomy'
-import type { AssetWithSummary } from '@/lib/data/queries'
+import type { AssetWithSummary } from '@/types/domain'
 
 /** Carte de bien : nom, nature, nombre d'obligations, prochaine échéance. */
 export function AssetCard({ asset }: { asset: AssetWithSummary }) {

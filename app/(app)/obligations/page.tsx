@@ -1,14 +1,19 @@
-import type { Metadata } from 'next'
-import { ObligationsPanel } from '@/components/obligations/obligations-panel'
-import { requireSession } from '@/lib/data/session'
-import { getAssetOptions, getDueObligations } from '@/lib/data/queries'
+'use client'
 
-export const metadata: Metadata = { title: 'Échéances' }
+import { ObligationsPanel } from '@/components/obligations/obligations-panel'
+import { PageSkeleton } from '@/components/ui/page-skeleton'
+import { useStore } from '@/lib/store/provider'
+import { selectAssetOptions, selectDueObligations } from '@/lib/store/selectors'
 
 /** Un seul rôle : quelles sont toutes mes échéances ? */
-export default async function ObligationsPage() {
-  const { profile, today } = await requireSession()
-  const [rows, assets] = await Promise.all([getDueObligations(today), getAssetOptions()])
+export default function ObligationsPage() {
+  const { data, today, hydrated } = useStore()
+
+  if (!hydrated) return <PageSkeleton />
+
+  const rows = selectDueObligations(data, today)
+  const assets = selectAssetOptions(data)
+  const plural = rows.length > 1 ? 's' : ''
 
   return (
     <div>
@@ -23,10 +28,10 @@ export default async function ObligationsPage() {
         rows={rows}
         today={today}
         assets={assets}
-        defaultReminderDays={profile.default_reminder_days}
-        defaultCurrency={profile.default_currency}
+        defaultReminderDays={data.profile.default_reminder_days}
+        defaultCurrency={data.profile.default_currency}
         variant="full"
-        title={`${rows.length} obligation${rows.length > 1 ? 's' : ''} active${rows.length > 1 ? 's' : ''}`}
+        title={`${rows.length} obligation${plural} active${plural}`}
       />
     </div>
   )

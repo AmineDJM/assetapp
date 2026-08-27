@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useTransition } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
-import { createObligation, updateObligation } from '@/actions/obligations'
+import { addObligation, editObligation } from '@/lib/store/mutations'
+import { useStore } from '@/lib/store/provider'
+import { obligationInputSchema } from '@/lib/validation/schemas'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -35,10 +37,14 @@ import {
   OBLIGATION_TYPE_LABELS,
   OBLIGATION_TYPES,
 } from '@/lib/taxonomy'
-import { applyServerErrors, fieldError } from '@/lib/utils/form'
+import { fieldError, validateForm } from '@/lib/utils/form'
 import { cn } from '@/lib/utils/cn'
-import type { AssetOption } from '@/lib/data/queries'
-import type { CalculationBasis, Obligation, ObligationType } from '@/types/domain'
+import type {
+  AssetOption,
+  CalculationBasis,
+  Obligation,
+  ObligationType,
+} from '@/types/domain'
 
 /**
  * Deux façons de fixer la première échéance :
@@ -129,7 +135,7 @@ export function ObligationFormDialog({
   defaultCurrency: string
   today: string
 }) {
-  const [pending, startTransition] = useTransition()
+  const { update } = useStore()
   const isEdit = obligation !== null
 
   const initialValues = useMemo(
@@ -174,8 +180,9 @@ export function ObligationFormDialog({
       return
     }
 
-    startTransition(async () => {
-      const payload = {
+    const parsed = validateForm(
+      obligationInputSchema,
+      {
         asset_id: values.asset_id,
         name: values.name,
         type: values.type,
@@ -187,23 +194,25 @@ export function ObligationFormDialog({
         currency: values.currency === NONE ? '' : values.currency,
         reminder_days_before: values.reminder_days_before,
         notes: values.notes,
-      }
+      },
+      setError,
+    )
 
-      const result = isEdit
-        ? await updateObligation(obligation.id, payload)
-        : await createObligation(payload)
+    if (!parsed.ok) {
+      toast.error(parsed.message)
+      return
+    }
 
-      if (!result.ok) {
-        applyServerErrors(setError, result)
-        toast.error(result.error)
-        return
-      }
+    update((current) =>
+      isEdit
+        ? editObligation(current, obligation.id, parsed.value)
+        : addObligation(current, parsed.value),
+    )
 
-      toast.success(isEdit ? 'Modifications enregistrées' : 'Obligation ajoutée', {
-        description: `Prochaine échéance : ${formatLongDate(result.data.next_due_date)}`,
-      })
-      onOpenChange(false)
+    toast.success(isEdit ? 'Modifications enregistrées' : 'Obligation ajoutée', {
+      description: `Prochaine échéance : ${formatLongDate(parsed.value.next_due_date)}`,
     })
+    onOpenChange(false)
   })
 
   return (
@@ -483,8 +492,8 @@ export function ObligationFormDialog({
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
-            <Button type="submit" variant="primary" disabled={pending || assets.length === 0}>
-              {pending ? 'Enregistrement…' : isEdit ? 'Enregistrer' : 'Ajouter'}
+            <Button type="submit" variant="primary" disabled={assets.length === 0}>
+              {isEdit ? 'Enregistrer' : 'Ajouter'}
             </Button>
           </DialogFooter>
         </form>

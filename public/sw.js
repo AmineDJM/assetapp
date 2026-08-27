@@ -2,12 +2,15 @@
 /**
  * Service Worker de Patrimoine.
  *
- * Deux responsabilités, volontairement limitées :
- *   1. afficher les notifications push reçues ;
- *   2. ouvrir la bonne page au clic.
+ * L'application n'a pas de serveur : les données vivent dans le navigateur et
+ * les notifications sont émises par la page elle-même via
+ * `registration.showNotification()`. Le rôle du worker se limite donc à ouvrir
+ * la bonne page quand on clique sur une notification.
  *
- * Aucun cache d'application n'est mis en place : les données d'échéance
- * doivent toujours être fraîches, et servir une page périmée serait pire
+ * Le gestionnaire `push` est conservé : il ne coûte rien et rendrait
+ * l'application prête si un serveur d'envoi était ajouté un jour.
+ *
+ * Aucun cache d'application : servir une page d'échéances périmée serait pire
  * qu'un chargement réseau.
  */
 

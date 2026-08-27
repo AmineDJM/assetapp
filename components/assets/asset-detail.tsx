@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { MoreHorizontal, Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import { setAssetArchived } from '@/actions/assets'
-import { setObligationArchived } from '@/actions/obligations'
+import { setAssetArchived, setObligationArchived } from '@/lib/store/mutations'
+import { useStore } from '@/lib/store/provider'
 import { AssetFormDialog } from '@/components/assets/asset-form-dialog'
 import { CompleteDialog } from '@/components/obligations/complete-dialog'
 import { ObligationFormDialog } from '@/components/obligations/obligation-form-dialog'
@@ -21,8 +21,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { HistoryTable } from '@/components/history/history-table'
 import { ASSET_TYPE_LABELS } from '@/lib/taxonomy'
-import type { AssetOption } from '@/lib/data/queries'
-import type { Asset, CompletionWithContext, DueObligation, Obligation } from '@/types/domain'
+import type {
+  Asset,
+  AssetOption,
+  CompletionWithContext,
+  DueObligation,
+  Obligation,
+} from '@/types/domain'
 
 /** Un seul rôle : quelles obligations concernent ce bien ? */
 export function AssetDetail({
@@ -48,7 +53,7 @@ export function AssetDetail({
   const [creatingObligation, setCreatingObligation] = useState(false)
   const [editingObligation, setEditingObligation] = useState<Obligation | null>(null)
   const [completing, setCompleting] = useState<DueObligation | null>(null)
-  const [, startTransition] = useTransition()
+  const { update } = useStore()
 
   // Arrivée depuis une notification : /assets/<id>?obligation=<id>
   const highlightId = searchParams.get('obligation')
@@ -69,46 +74,28 @@ export function AssetDetail({
   ]
 
   function handleArchiveAsset() {
-    startTransition(async () => {
-      const archived = asset.is_active
-      const result = await setAssetArchived(asset.id, archived)
-      if (!result.ok) {
-        toast.error(result.error)
-        return
-      }
-      toast.success(archived ? 'Bien archivé' : 'Bien restauré', {
-        description: asset.name,
-        action: {
-          label: 'Annuler',
-          onClick: () => {
-            void setAssetArchived(asset.id, !archived).then((undone) => {
-              if (!undone.ok) toast.error(undone.error)
-            })
-          },
-        },
-      })
-      if (archived) router.push('/assets')
+    const archived = asset.is_active
+    update((current) => setAssetArchived(current, asset.id, archived))
+
+    toast.success(archived ? 'Bien archivé' : 'Bien restauré', {
+      description: asset.name,
+      action: {
+        label: 'Annuler',
+        onClick: () => update((current) => setAssetArchived(current, asset.id, !archived)),
+      },
     })
+
+    if (archived) router.push('/assets')
   }
 
   function handleArchiveObligation(row: DueObligation) {
-    startTransition(async () => {
-      const result = await setObligationArchived(row.id, true)
-      if (!result.ok) {
-        toast.error(result.error)
-        return
-      }
-      toast.success('Obligation archivée', {
-        description: row.name,
-        action: {
-          label: 'Annuler',
-          onClick: () => {
-            void setObligationArchived(row.id, false).then((undone) => {
-              if (!undone.ok) toast.error(undone.error)
-            })
-          },
-        },
-      })
+    update((current) => setObligationArchived(current, row.id, true))
+    toast.success('Obligation archivée', {
+      description: row.name,
+      action: {
+        label: 'Annuler',
+        onClick: () => update((current) => setObligationArchived(current, row.id, false)),
+      },
     })
   }
 
