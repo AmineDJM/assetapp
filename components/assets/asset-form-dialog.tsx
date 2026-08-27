@@ -106,7 +106,7 @@ export function AssetFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <form onSubmit={onSubmit} className="flex min-h-0 flex-col">
+        <form onSubmit={onSubmit} className="flex min-h-0 flex-col" noValidate>
           <DialogHeader>
             <DialogTitle>
               {isEdit

@@ -86,11 +86,12 @@ export const obligationInputSchema = z.object({
   name: z.string().trim().min(1, 'Le nom est obligatoire').max(120, 'Maximum 120 caractères'),
   type: obligationTypeSchema,
   category: optionalText(60),
+  // Le cœur de la règle métier : un entier de jours, jamais zéro ni négatif.
   frequency_days: z.coerce
-    .number({ message: 'Fréquence invalide' })
+    .number({ message: 'Indique une fréquence en jours' })
     .int('La fréquence doit être un nombre entier de jours')
     .min(1, 'La fréquence doit être d’au moins 1 jour')
-    .max(36_500, 'Fréquence trop élevée'),
+    .max(36_500, 'Fréquence trop élevée (100 ans maximum)'),
   calculation_basis: calculationBasisSchema,
   next_due_date: dateString,
   expected_amount: optionalAmount,

@@ -12,8 +12,10 @@
 
   --color-ink: #18181b;
   --color-ink-soft: #3f3f46;
-  --color-muted: #71717a;
-  --color-subtle: #a1a1aa;
+  /* Gris choisis pour rester au-dessus de 4,5:1 (WCAG AA, texte normal) sur
+     les trois fonds de l'application : blanc, canvas et gris clair. */
+  --color-muted: #63636b;
+  --color-subtle: #6f6f78;
 
   --color-line: #e8e8ea;
   --color-line-strong: #d7d7db;

@@ -20,6 +20,7 @@ export function DialogContent({
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="animate-overlay fixed inset-0 z-50 bg-ink/20 backdrop-blur-[2px]" />
       <DialogPrimitive.Content
+        aria-modal="true"
         className={cn(
           'animate-content fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_32px_-12px_rgba(0,0,0,0.12)]',
           className,
