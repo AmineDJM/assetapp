@@ -14,3 +14,6 @@ next-env.d.ts
 .DS_Store
 coverage/
 .vercel
+
+# Sorties de scripts de test lancés sans variable de chemin
+undefined/
