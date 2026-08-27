@@ -42,6 +42,10 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
 
   const { pathname } = request.nextUrl
 
+  // Les routes API répondent elles-mêmes par un statut : rediriger un appel
+  // programmatique vers une page de connexion HTML n'aurait aucun sens.
+  if (pathname.startsWith('/api/')) return response
+
   if (!user && !isPublicPath(pathname)) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
