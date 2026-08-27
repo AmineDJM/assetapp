@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { getSupabaseAnonKey, getSupabaseUrl } from './env'
+import { isSupabaseConfigured } from '@/lib/config'
 
 const PUBLIC_PATHS = ['/login', '/auth']
 
@@ -15,7 +16,21 @@ function isPublicPath(pathname: string): boolean {
  * applicatives sans utilisateur connecté.
  */
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
-  let response = NextResponse.next({ request })
+  const response = NextResponse.next({ request })
+
+  // Sans configuration Supabase, il n'y a pas de session à rafraîchir et
+  // aucune redirection ne serait utile : on laisse la page rendre l'écran
+  // d'installation plutôt que de renvoyer une 500 sur toutes les routes.
+  if (!isSupabaseConfigured()) return response
+
+  return withSession(request, response)
+}
+
+async function withSession(
+  request: NextRequest,
+  initialResponse: NextResponse,
+): Promise<NextResponse> {
+  let response = initialResponse
 
   const supabase = createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     cookies: {

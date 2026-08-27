@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { isSupabaseConfigured } from '@/lib/config'
 import { csvResponse, jsonDownloadResponse, toCsv } from '@/lib/export/csv'
 import { todayInTimeZone } from '@/lib/dates'
 import { CALCULATION_BASIS_LABELS, ASSET_TYPE_LABELS, OBLIGATION_TYPE_LABELS } from '@/lib/taxonomy'
@@ -23,6 +24,13 @@ function isExportType(value: string | null): value is ExportType {
 }
 
 export async function GET(request: NextRequest) {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json(
+      { error: "L'application n'est pas configurée : variables Supabase manquantes." },
+      { status: 503 },
+    )
+  }
+
   const supabase = await createClient()
   const {
     data: { user },

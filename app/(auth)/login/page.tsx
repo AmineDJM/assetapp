@@ -1,11 +1,16 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { LoginForm } from '@/components/shell/login-form'
+import { MissingEnvScreen } from '@/components/shell/setup-required'
 import { getSessionContext } from '@/lib/data/session'
+import { getMissingRequiredEnv } from '@/lib/config'
 
 export const metadata: Metadata = { title: 'Connexion' }
 
 export default async function LoginPage() {
+  const missing = getMissingRequiredEnv()
+  if (missing.length > 0) return <MissingEnvScreen missing={missing} />
+
   const session = await getSessionContext()
   if (session) redirect('/dashboard')
 

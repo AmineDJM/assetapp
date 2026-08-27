@@ -206,6 +206,52 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://<domaine>/api/cron/reminder
 
 ---
 
+## Résolution de problèmes
+
+### « Internal Server Error » après un déploiement Vercel
+
+C'est presque toujours une variable d'environnement absente. `NEXT_PUBLIC_SUPABASE_URL`
+et `NEXT_PUBLIC_SUPABASE_ANON_KEY` sont les deux seules variables indispensables.
+
+L'application le détecte et affiche un écran nommant les variables manquantes —
+si tu vois une vraie page « Internal Server Error » sans explication, c'est que le
+déploiement est antérieur à cette détection : redéploie.
+
+> **Le piège Vercel :** les variables préfixées `NEXT_PUBLIC_` sont lues par le
+> navigateur, donc figées au moment du build. Les ajouter dans Settings →
+> Environment Variables ne suffit pas : il faut **redéployer** pour qu'elles
+> soient prises en compte. Deployments → ⋯ → Redeploy.
+
+### « Base de données non initialisée »
+
+La connexion à Supabase fonctionne mais les tables n'existent pas : les migrations
+n'ont pas été appliquées. Voir [Appliquer les migrations](#2-appliquer-les-migrations).
+
+### La page reste bloquée sur la connexion
+
+Vérifie dans Supabase, **Authentication → Providers → Email**, si la confirmation
+par email est exigée. Le compte doit être confirmé avant de pouvoir se connecter.
+
+### Un projet Supabase gratuit se met en pause
+
+Après une période d'inactivité, un projet du plan gratuit est suspendu et
+l'application affiche « Base de données injoignable ». Il se réveille depuis le
+dashboard Supabase.
+
+### Le cron ne s'exécute pas
+
+Le plan Hobby n'autorise qu'un déclenchement par jour, et Vercel n'appelle les
+crons que sur le déploiement de production. Pour tester immédiatement :
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://<domaine>/api/cron/reminders
+```
+
+La réponse JSON indique le nombre de push envoyés, d'emails envoyés ou ignorés,
+et les erreurs éventuelles.
+
+---
+
 ## Notifications push
 
 Web Push standard, avec VAPID. Aucun service tiers, aucun abonnement payant :

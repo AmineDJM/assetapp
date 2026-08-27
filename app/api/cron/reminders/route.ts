@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isSupabaseConfigured } from '@/lib/config'
 import { runReminders } from '@/lib/reminders/run'
 
 /**
@@ -42,6 +43,13 @@ export async function GET(request: NextRequest) {
 
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'Non autorisé.' }, { status: 401 })
+  }
+
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json(
+      { error: 'Variables Supabase manquantes : le cron ne peut pas s’exécuter.' },
+      { status: 503 },
+    )
   }
 
   try {
