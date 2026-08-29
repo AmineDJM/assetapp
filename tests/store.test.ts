@@ -334,3 +334,44 @@ describe('migration du document', () => {
     expect(restored.profile.default_reminder_days).toEqual([30, 7, 1, 0])
   })
 })
+
+describe('suppression d’un bien depuis sa page', () => {
+  it('emporte obligations et historique, sans toucher aux autres biens', () => {
+    let data = addAsset(createEmptyData(), AUDI)
+    data = addAsset(data, { ...AUDI, name: 'Villa Alger', type: 'property' })
+    const [audi, villa] = data.assets
+    data = addObligation(data, assurance(audi!.id))
+    data = addObligation(data, assurance(villa!.id, { name: 'Eau' }))
+
+    const completed = completeObligation(
+      data,
+      {
+        obligation_id: data.obligations[0]!.id,
+        completed_date: '2026-09-03',
+        actual_amount: null,
+        notes: null,
+        advance_until_future: false,
+      },
+      TODAY,
+    )!
+
+    const purged = removeAsset(completed.data, audi!.id)
+
+    expect(purged.assets.map((a) => a.name)).toEqual(['Villa Alger'])
+    expect(purged.obligations.map((o) => o.name)).toEqual(['Eau'])
+    expect(purged.completions).toHaveLength(0)
+  })
+
+  it('supprimer un bien inconnu ne change rien', () => {
+    const { data } = withAudiAssurance()
+    expect(removeAsset(data, 'inexistant')).toEqual(data)
+  })
+
+  it('supprime un bien archivé aussi bien qu’un bien actif', () => {
+    const { data, assetId } = withAudiAssurance()
+    const archived = setAssetArchived(data, assetId, true)
+    const purged = removeAsset(archived, assetId)
+    expect(purged.assets).toHaveLength(0)
+    expect(purged.obligations).toHaveLength(0)
+  })
+})

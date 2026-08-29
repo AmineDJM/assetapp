@@ -33,7 +33,7 @@ import { fromUtcDate } from '@/lib/dates'
  * appareil : il mérite d'être visible.
  */
 export function DataManagement() {
-  const { data, replaceAll } = useStore()
+  const { data, replaceAll, fileLink } = useStore()
   const fileInput = useRef<HTMLInputElement>(null)
   const [confirmingReset, setConfirmingReset] = useState(false)
 
@@ -92,9 +92,9 @@ export function DataManagement() {
           />
         </div>
         <p className="text-xs leading-relaxed text-muted">
-          Tes données ne vivent que dans ce navigateur : elles disparaissent si tu effaces les
-          données du site. Un export régulier est la seule sauvegarde — c’est aussi ce qui permet
-          de reprendre sur un autre appareil.
+          {fileLink.status === 'connected'
+            ? `Tes données sont déjà écrites en continu dans ${fileLink.fileName}. Cet export reste utile pour figer une copie datée.`
+            : 'Sans fichier rattaché, tes données ne vivent que dans ce navigateur et disparaissent si tu effaces les données du site. Un export régulier est alors la seule sauvegarde.'}
         </p>
       </div>
 

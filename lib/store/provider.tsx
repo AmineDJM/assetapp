@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { todayInTimeZone } from '@/lib/dates'
 import { createEmptyData, migrate, type PatrimoineData } from './schema'
+import { useFileLink, type FileLink } from './use-file-link'
 import {
   getMinuteSnapshot,
   isStorageAvailable,
@@ -24,6 +25,8 @@ import type { DateString } from '@/types/domain'
 
 interface StoreContextValue {
   data: PatrimoineData
+  /** Rattachement à un fichier de l'ordinateur (optionnel). */
+  fileLink: FileLink
   /** `false` tant que le navigateur n'a pas pris le relais du rendu serveur. */
   hydrated: boolean
   /** Date du jour dans le fuseau du profil. */
@@ -84,6 +87,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     writeData(next)
   }, [])
 
+  // Le fichier, quand il est rattaché, reçoit chaque modification et fait
+  // autorité au démarrage. Le localStorage reste le magasin de travail.
+  const fileLink = useFileLink({
+    serialized: hydrated ? JSON.stringify(data) : '',
+    onAdopt: replaceAll,
+  })
+
   const update = React.useCallback(
     (recipe: (current: PatrimoineData) => PatrimoineData) => {
       // Relu juste avant l'écriture : un autre onglet a pu modifier le document.
@@ -94,8 +104,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   )
 
   const value = React.useMemo<StoreContextValue>(
-    () => ({ data, hydrated, today, storageAvailable, update, replaceAll }),
-    [data, hydrated, today, storageAvailable, update, replaceAll],
+    () => ({ data, hydrated, today, storageAvailable, fileLink, update, replaceAll }),
+    [data, hydrated, today, storageAvailable, fileLink, update, replaceAll],
   )
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>

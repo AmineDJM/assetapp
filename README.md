@@ -47,20 +47,39 @@ exemples**. Quatre biens, treize obligations, dont une en retard.
 
 ## Où sont mes données
 
-Dans le `localStorage` de ton navigateur, sous une seule clé. Concrètement :
+Deux modes, au choix.
 
-- elles ne quittent **jamais** l'appareil — aucune requête réseau ne part vers
-  quoi que ce soit ;
-- elles sont **propres à ce navigateur** : Chrome sur ton portable et Safari
-  sur ton iPhone sont deux jeux de données distincts ;
-- elles **disparaissent** si tu effaces les données du site.
+### Par défaut : le stockage du navigateur
 
-D'où l'importance de **Paramètres → Mes données → Exporter**. Le fichier JSON
-obtenu est ta sauvegarde, et c'est aussi ce qui te permet de reprendre sur un
-autre appareil : il suffit de le restaurer là-bas.
+Dans le `localStorage`, sous une seule clé. Ça marche partout, sans rien
+configurer — mais les données sont invisibles, propres à ce navigateur, et
+**disparaissent** si tu effaces les données du site.
 
-L'application prévient si le stockage est indisponible — navigation privée,
-quota atteint, cookies bloqués — plutôt que de perdre une saisie en silence.
+### Recommandé : un fichier sur l'ordinateur
+
+**Paramètres → Fichier sur cet ordinateur → Créer `patrimoine.json`.**
+
+Patrimoine écrit alors le document dans ce fichier à **chaque modification**.
+C'est un vrai fichier : tu le vois, tu le sauvegardes, tu le mets où tu veux.
+Pose-le dans un dossier synchronisé (iCloud, Drive, Dropbox) et tu retrouves
+tes données d'un appareil à l'autre.
+
+Au démarrage et à chaque retour sur l'onglet, **c'est le fichier qui fait
+foi** : si la synchronisation l'a mis à jour ailleurs, l'application adopte la
+nouvelle version. Le `localStorage` reste utilisé comme cache de travail, si
+bien qu'effacer les données du navigateur ne perd plus rien.
+
+Le navigateur oublie l'autorisation d'écriture entre deux sessions : un bouton
+**Reconnecter** apparaît, un clic suffit.
+
+> Repose sur la File System Access API — Chrome, Edge et Opera de bureau.
+> Ailleurs (Firefox, Safari, mobile), l'export et l'import manuels font la même
+> chose, en manuel.
+
+Dans les deux cas, **rien ne quitte l'appareil** : aucune requête réseau ne
+part vers quoi que ce soit. L'application prévient si le stockage est
+indisponible — navigation privée, quota atteint — plutôt que de perdre une
+saisie en silence.
 
 ---
 
@@ -135,6 +154,8 @@ lib/
   store/                   le magasin local
     schema.ts              forme du document, migration, valeurs par défaut
     storage.ts             localStorage, tolérant aux pannes
+    file-link.ts           fichier sur le disque (File System Access API)
+    use-file-link.ts       cycle de vie du rattachement
     provider.tsx           accès React (useSyncExternalStore)
     mutations.ts           opérations métier — fonctions pures
     selectors.ts           vues dérivées (jamais stockées)
@@ -160,14 +181,16 @@ Dashboard — quatre indicateurs et la liste des prochaines échéances, triée,
 retards en tête · Biens et véhicules avec sous-types, pays, ville, devise ·
 Obligations typées et catégorisées, montant facultatif · Validation en un clic
 avec recalcul automatique et annulation · Historique immuable, montant prévu
-figé et écart · Rappels in-app et notifications système à l'ouverture · Export
-CSV, sauvegarde et restauration JSON · Archivage réversible · PWA installable ·
-Synchronisation entre les onglets ouverts.
+figé et écart · Archivage réversible et suppression définitive d'un bien, avec
+confirmation · Rappels in-app et notifications système à l'ouverture ·
+Rattachement à un fichier du disque · Export CSV, sauvegarde et restauration
+JSON · PWA installable · Synchronisation entre les onglets ouverts.
 
 ## Ce qu'elle ne fait pas
 
 Ni comptabilité, ni OCR, ni synchronisation bancaire, ni conversion de devises,
-ni collaboration, ni synchronisation entre appareils. Les montants de devises
+ni collaboration. La synchronisation entre appareils n'est pas intégrée : elle
+passe par le fichier, posé dans un dossier synchronisé. Les montants de devises
 différentes sont affichés séparément, jamais additionnés.
 
 ---
@@ -175,10 +198,10 @@ différentes sont affichés séparément, jamais additionnés.
 ## Et si je veux un serveur plus tard
 
 Le magasin est le seul point de contact avec la persistance :
-`lib/store/storage.ts` pour la lecture/écriture, `lib/store/provider.tsx` pour
-l'accès React. Les mutations et les sélecteurs, eux, ne savent pas où vivent
-les données. Brancher une base reviendrait à réécrire ces deux fichiers — le
-reste ne bougerait pas.
+`lib/store/storage.ts` et `lib/store/file-link.ts` pour la lecture/écriture,
+`lib/store/provider.tsx` pour l'accès React. Les mutations et les sélecteurs,
+eux, ne savent pas où vivent les données. Brancher une base reviendrait à
+réécrire ces fichiers — le reste ne bougerait pas.
 
 Une version complète avec Supabase, authentification, Row Level Security et
 notifications push serveur existe dans l'historique git, au commit `e4fe4b6`.

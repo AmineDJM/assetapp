@@ -10,15 +10,7 @@ import {
 } from '@/lib/store/mutations'
 import { useStore } from '@/lib/store/provider'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ASSET_TYPE_LABELS } from '@/lib/taxonomy'
 import type { Asset, Obligation } from '@/types/domain'
 
@@ -128,29 +120,22 @@ export function ArchivedList({
         ))}
       </ul>
 
-      <Dialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Supprimer définitivement</DialogTitle>
-            <DialogDescription>
-              {confirming?.name} sera supprimé, ainsi que son historique.
-              {confirming?.kind === 'asset'
-                ? ' Toutes ses obligations disparaîtront également.'
-                : ''}{' '}
-              Cette action est irréversible.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogBody />
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirming(null)}>
-              Annuler
-            </Button>
-            <Button variant="danger" onClick={confirmDelete}>
-              Supprimer définitivement
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={confirming !== null}
+        onOpenChange={(open) => !open && setConfirming(null)}
+        title="Supprimer définitivement"
+        description={
+          <>
+            {confirming?.name} sera supprimé, ainsi que son historique.
+            {confirming?.kind === 'asset'
+              ? ' Toutes ses obligations disparaîtront également.'
+              : ''}{' '}
+            Cette action est irréversible.
+          </>
+        }
+        confirmLabel="Supprimer définitivement"
+        onConfirm={confirmDelete}
+      />
     </>
   )
 }

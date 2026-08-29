@@ -2,6 +2,7 @@
 
 import { ArchivedList } from '@/components/settings/archived-list'
 import { DataManagement } from '@/components/settings/data-management'
+import { FileLinkSettings } from '@/components/settings/file-link-settings'
 import { NotificationsSettings } from '@/components/settings/notifications-settings'
 import { ProfileForm } from '@/components/settings/profile-form'
 import { SettingsSection } from '@/components/settings/section'
@@ -36,8 +37,15 @@ export default function SettingsPage() {
         </SettingsSection>
 
         <SettingsSection
+          title="Fichier sur cet ordinateur"
+          description="Par défaut les données vivent dans le navigateur. Rattache-les à un fichier pour les voir, les sauvegarder et les synchroniser toi-même."
+        >
+          <FileLinkSettings />
+        </SettingsSection>
+
+        <SettingsSection
           title="Mes données"
-          description="Tout est stocké dans ce navigateur, rien n’est envoyé nulle part."
+          description="Rien n’est envoyé nulle part : ni serveur, ni compte, ni suivi."
         >
           <DataManagement />
         </SettingsSection>

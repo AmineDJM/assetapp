@@ -2,15 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { MoreHorizontal, Plus } from 'lucide-react'
+import { MoreHorizontal, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { setAssetArchived, setObligationArchived } from '@/lib/store/mutations'
+import { removeAsset, setAssetArchived, setObligationArchived } from '@/lib/store/mutations'
 import { useStore } from '@/lib/store/provider'
 import { AssetFormDialog } from '@/components/assets/asset-form-dialog'
 import { CompleteDialog } from '@/components/obligations/complete-dialog'
 import { ObligationFormDialog } from '@/components/obligations/obligation-form-dialog'
 import { ObligationTable } from '@/components/obligations/obligation-table'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
   DropdownMenu,
@@ -53,6 +54,7 @@ export function AssetDetail({
   const [creatingObligation, setCreatingObligation] = useState(false)
   const [editingObligation, setEditingObligation] = useState<Obligation | null>(null)
   const [completing, setCompleting] = useState<DueObligation | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const { update } = useStore()
 
   // Arrivée depuis une notification : /assets/<id>?obligation=<id>
@@ -88,6 +90,13 @@ export function AssetDetail({
     if (archived) router.push('/assets')
   }
 
+  function handleDeleteAsset() {
+    // Redirection avant l'écriture : cette page disparaît avec le bien.
+    router.push('/assets')
+    update((current) => removeAsset(current, asset.id))
+    toast.success('Bien supprimé', { description: asset.name })
+  }
+
   function handleArchiveObligation(row: DueObligation) {
     update((current) => setObligationArchived(current, row.id, true))
     toast.success('Obligation archivée', {
@@ -119,11 +128,12 @@ export function AssetDetail({
           <DropdownMenuContent>
             <DropdownMenuItem onSelect={() => setEditingAsset(true)}>Modifier</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant={asset.is_active ? 'danger' : 'default'}
-              onSelect={handleArchiveAsset}
-            >
+            <DropdownMenuItem onSelect={handleArchiveAsset}>
               {asset.is_active ? 'Archiver' : 'Restaurer'}
+            </DropdownMenuItem>
+            <DropdownMenuItem variant="danger" onSelect={() => setConfirmingDelete(true)}>
+              <Trash2 />
+              Supprimer définitivement
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -185,6 +195,21 @@ export function AssetDetail({
           </div>
         </section>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        onOpenChange={setConfirmingDelete}
+        title="Supprimer définitivement"
+        description={
+          <>
+            {asset.name} sera supprimé, ainsi que ses {obligations.length} obligation
+            {obligations.length > 1 ? 's' : ''} et tout leur historique. Cette action est
+            irréversible.
+          </>
+        }
+        confirmLabel="Supprimer définitivement"
+        onConfirm={handleDeleteAsset}
+      />
 
       <AssetFormDialog open={editingAsset} onOpenChange={setEditingAsset} asset={asset} />
 

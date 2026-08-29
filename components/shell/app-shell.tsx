@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { HardDrive } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { useStore } from '@/lib/store/provider'
 import { selectAssetOptions, selectDueObligations } from '@/lib/store/selectors'
@@ -20,7 +21,7 @@ import { isActivePath, NAV_ITEMS } from './nav'
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const current = NAV_ITEMS.find((item) => isActivePath(pathname, item.href))
-  const { data, today, hydrated } = useStore()
+  const { data, today, hydrated, fileLink } = useStore()
 
   const rows = selectDueObligations(data, today)
   const assets = selectAssetOptions(data)
@@ -72,7 +73,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="border-t border-line px-5 py-4">
-          <p className="text-xs text-subtle">Données locales à cet appareil</p>
+          {hydrated && fileLink.status === 'connected' ? (
+            <p className="truncate text-xs text-subtle" title={fileLink.fileName ?? undefined}>
+              <HardDrive className="mr-1 inline size-3 align-[-1px]" aria-hidden />
+              {fileLink.fileName}
+            </p>
+          ) : (
+            <p className="text-xs text-subtle">Données locales à cet appareil</p>
+          )}
         </div>
       </aside>
 
